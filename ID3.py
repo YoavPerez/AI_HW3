@@ -10,16 +10,24 @@ number of features = number of columns that are not the classification
 features = 1, 2, 3, 4, ... , n (not including 0!!!)
 """
 
+
 class Feature:
     def __init__(self, col):
         self.col = col
 
     def values(self, mat):
-        v = sorted(set(mat[:, self.col]))
-        return [0.5*(v[i] + v[i+1]) for i in range(len(v) - 1)]
+        v = sorted(list(set(mat[:, self.col])))
+        return [0.5 * (v[i] + v[i + 1]) for i in range(len(v) - 1)]
 
     def __call__(self, mat, v):
-        return mat[mat[:, self.col] <= v]
+        out = mat[mat[:, self.col] <= v]
+        return out
+
+    def single_call(self, o, v):
+        return 0 if o[self.col] <= v else 1
+
+    def rev_call(self, mat, v):
+        return mat[mat[:, self.col] > v]
 
 
 def H(examples):
@@ -27,68 +35,117 @@ def H(examples):
     if examples.shape[0] == 0:
         return 0
     num_b = examples[examples[:, 0] == 0].shape[0]
-    num_m = examples.shape[0] - num_b
+    num_m = examples[examples[:, 0] == 1].shape[0]
     p_b = num_b / total
     p_m = num_m / total
+    print("num_b :", num_b, "num_m :", num_m, "total:", total)
 
-    out = 0
-    out -= 0 if num_b == 0 else log(p_b, 2)*p_b
-    out -= 0 if num_m == 0 else log(p_m, 2) * p_m
+    assert num_b + num_m == total
+    if num_b == 0:
+        out = - log(p_m, 2) * p_m
+
+    elif num_m == 0:
+        out = -log(p_b, 2) * p_b
+    else:
+        out = (-log(p_b, 2) * p_b) + (- log(p_m, 2) * p_m)
     return out
-
 
 def IG(f: Feature, mat: np.array):
     total = mat.shape[0]
     h = H(mat)
-    for v in f.values(mat):
-        ei = f(mat, v)
+    max_v = -np.inf
+    max_ig = -np.inf
+    for v in f.values(mat):  # max IG for this feature
+        ig = h
+        e0 = f(mat, v)
+        e1 = f.rev_call(mat, v)
+        ig -= (((e0.shape[0] / total) * H(e0)) + ((e1.shape[0] / total) * H(e1)))
+        if ig > max_ig:
+            max_ig = ig
+            max_v = v
+
+    return max_ig, max_v
 
 
-    max_val = -np.inf
-
-    return max_val
-
-
-
-def MaxIG(F, E):
+def MaxIG(features, examples):
     f_max = None
-    max_val = -np.inf
-    for f in F:
-        val = IG(f, E)
-        if val > max_val:
-            max_val = val
+    max_ig = -np.inf
+    max_v = -np.inf
+    for f in features:  # max IG over all the features
+        ig, v = IG(f, examples)
+
+        if ig > max_ig:  # choose the feature which gives best IG
+            max_ig = ig
             f_max = f
-    return f_max
+            max_v = v
+    return f_max, max_v
 
-def TDIDT(E: np.array, F, default, select):
-    if E.shape[0] == 0:
-        return None, np.array([]), default
 
-    c = majority_class(E)
-    if np.all(E[:, 0] == c) or len(F) == 0:
-        return None, np.array([]), c
-    f = select(F, E)
-    print(E.shape)
-    subtrees = [(v, TDIDT(f(E, v), F, c, select)) for v in f.values(E)]
+def TDIDT(examples: np.array, features, default, select):
+    if examples.shape[0] == 0:
+        return None, [], default
 
-    return f, subtrees, c
+    c = majority_class(examples)
+    if np.all(examples[:, 0] == c) or len(features) == 0:
+        return None, [], c
 
-def majority_class(E:np.array):
-    num_b = E[E[:, 0] == 0].shape[0]
-    num_m = E.shape[0] - num_b
-    return 0 if num_b >= num_m else 1
+    f, v = select(features, examples)
+    subtrees = [(0, TDIDT(f(examples, v), features, c, select)),
+                (1, TDIDT(f.rev_call(examples, v), features, c, select))]
+    return (f, v), subtrees, c
 
-def ID3(E:np.array, F):
-    c = majority_class(E)
-    return TDIDT(E, F, c, MaxIG)
+
+def DT_class(o, Tree):
+    c = Tree[2]
+    if Tree[1] is None or len(Tree[1]) == 0:
+        return c
+    f, v = Tree[0]  # function, threshold
+    children = Tree[1]
+
+    for (val, sub_tree) in children:
+        if f.single_call(o, v) == val:
+            return DT_class(o, sub_tree)
+
+
+def majority_class(examples: np.array):
+    num_b = examples[examples[:, 0] == 0].shape[0]
+    num_m = examples[examples[:, 0] == 1].shape[0]
+    assert num_b + num_m == examples.shape[0]
+    return 0 if num_b > num_m else 1
+
+
+def ID3(examples: np.array, features):
+    c = majority_class(examples)
+    return TDIDT(examples, features, c, MaxIG)
 
 
 if __name__ == '__main__':
+    E = np.array([[1, 23],
+                  [0, 9],
+                  [1, 34],
+                  [0, 6],
+                  [1, 25],
+                  [0, 3]])
+    F = [Feature(i) for i in range(1, E.shape[1])]
+    f1, v1 = MaxIG(F, E)
+
+
+    """
     E = np.array(pandas.read_csv('train.csv'))
     E[E[:, 0] == 'B', 0] = 0
     E[E[:, 0] == 'M', 0] = 1
     E = np.array(E, dtype=float)
     F = [Feature(i) for i in range(1, E.shape[1])]
     tree = ID3(E, F)
-    print(tree[0])
-    quit()
+
+    test = np.array(pandas.read_csv('test.csv'))
+    test[test[:, 0] == 'B', 0] = 0
+    test[test[:, 0] == 'M', 0] = 1
+
+    num_correct = 0
+    for x in test:
+        if DT_class(x, tree) == x[0]:
+            num_correct += 1
+    print(num_correct / test.shape[0])
+    
+"""
