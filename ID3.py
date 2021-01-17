@@ -29,7 +29,12 @@ class Feature:
     def rev_call(self, mat, v):
         return mat[mat[:, self.col] > v]
 
-
+class Node:
+    def __init__(self, f, threshold, children, c):
+        self.threshold = threshold
+        self.children = children
+        self.f = f
+        self.c = c
 def H(examples):
     total = examples.shape[0]
     if examples.shape[0] == 0:
@@ -82,25 +87,23 @@ def MaxIG(features, examples):
 
 def TDIDT(examples: np.array, features, default, select):
     if examples.shape[0] == 0:
-        return None, [], default
+        return Node(None, None, [], default)
 
     c = majority_class(examples)
     if np.all(examples[:, 0] == c) or len(features) == 0:
-        return None, [], c
+        return Node(None,None,  [], c)
 
     f, threshold = select(features, examples)
     subtrees = [(0, TDIDT(f(examples, threshold), features, c, select)),
                 (1, TDIDT(f.rev_call(examples, threshold), features, c, select))]
-    return (f, threshold), subtrees, c
+    return Node(f, threshold, subtrees, c)
 
 
-def DT_class(o, Tree):
-    c = Tree[2]
-    if Tree[1] is None or len(Tree[1]) == 0:
+def DT_class(o, Tree:Node):
+    f, c, children, threshold = Tree.f, Tree.c, Tree.children, Tree.threshold
+
+    if children is None or len(children) == 0:
         return c
-    f, threshold = Tree[0]  # function, threshold
-    children = Tree[1]
-
     for (val, sub_tree) in children:
         if f.single_call(o, threshold) == val:
             return DT_class(o, sub_tree)
