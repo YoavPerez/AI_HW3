@@ -2,7 +2,7 @@ import numpy as np
 import math
 from math import log
 import pandas
-
+import time
 """ the parameters are:
 examples: numpy array of the rows in ths csv. [0] => classification, [i] => the ith feature
 feature = i => the value of the example in column i
@@ -38,7 +38,6 @@ def H(examples):
     num_m = examples[examples[:, 0] == 1].shape[0]
     p_b = num_b / total
     p_m = num_m / total
-    print("num_b :", num_b, "num_m :", num_m, "total:", total)
 
     assert num_b + num_m == total
     if num_b == 0:
@@ -89,21 +88,21 @@ def TDIDT(examples: np.array, features, default, select):
     if np.all(examples[:, 0] == c) or len(features) == 0:
         return None, [], c
 
-    f, v = select(features, examples)
-    subtrees = [(0, TDIDT(f(examples, v), features, c, select)),
-                (1, TDIDT(f.rev_call(examples, v), features, c, select))]
-    return (f, v), subtrees, c
+    f, threshold = select(features, examples)
+    subtrees = [(0, TDIDT(f(examples, threshold), features, c, select)),
+                (1, TDIDT(f.rev_call(examples, threshold), features, c, select))]
+    return (f, threshold), subtrees, c
 
 
 def DT_class(o, Tree):
     c = Tree[2]
     if Tree[1] is None or len(Tree[1]) == 0:
         return c
-    f, v = Tree[0]  # function, threshold
+    f, threshold = Tree[0]  # function, threshold
     children = Tree[1]
 
     for (val, sub_tree) in children:
-        if f.single_call(o, v) == val:
+        if f.single_call(o, threshold) == val:
             return DT_class(o, sub_tree)
 
 
@@ -120,17 +119,9 @@ def ID3(examples: np.array, features):
 
 
 if __name__ == '__main__':
-    E = np.array([[1, 23],
-                  [0, 9],
-                  [1, 34],
-                  [0, 6],
-                  [1, 25],
-                  [0, 3]])
-    F = [Feature(i) for i in range(1, E.shape[1])]
-    f1, v1 = MaxIG(F, E)
+    start = time.time()
 
 
-    """
     E = np.array(pandas.read_csv('train.csv'))
     E[E[:, 0] == 'B', 0] = 0
     E[E[:, 0] == 'M', 0] = 1
@@ -147,5 +138,5 @@ if __name__ == '__main__':
         if DT_class(x, tree) == x[0]:
             num_correct += 1
     print(num_correct / test.shape[0])
-    
-"""
+    print(time.time()-start)
+
