@@ -169,7 +169,7 @@ class ExampleSet:
         for example in self.examples:
             value = example.attribute_hash[attribute]
             if not value in list(histograms.keys()):
-                histograms[value] = [0,0]
+                histograms[value] = [0, 0]
             if example.outcome:
                 histograms[value][0] += 1
             else:
@@ -188,7 +188,7 @@ class ExampleSet:
         sorted_values = sorted(information_gain.keys(),key=lambda x : information_gain[x],reverse=True)
 
         s = []
-        s_histogram = [0,0]
+        s_histogram = [0, 0]
         # add the values to S while the information gain of x \in S still rises
         previous_gain = 0
         for value in sorted_values:
@@ -213,7 +213,7 @@ class ExampleSet:
         """
         compute the information_gain and splitting test.csv according to the boolean attribute ``attribute``
         """
-        passing = [0,0]
+        passing = [0, 0]
         failing = [self.positives,self.negatives]
         for example in self.examples:
             if example.attribute_hash[attribute]:

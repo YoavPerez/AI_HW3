@@ -91,17 +91,18 @@ def MaxIG(features, examples):
     return f_max, max_v
 
 
-def TDIDT(examples: np.array, features, default, select, M):
+def TDIDT(examples: np.array, features, default, select, M, p):
     if examples.shape[0] <= M:
         return Node(None, None, [], default)
 
-    c = majority_class(examples)
+    c = majority_class(examples, p)
+
     if np.all(examples[:, 0] == c) or len(features) == 0:
         return Node(None, None, [], c)
 
     f, threshold = select(features, examples)
-    subtrees = [(0, TDIDT(f(examples, threshold), features, c, select, M)),
-                (1, TDIDT(f.rev_call(examples, threshold), features, c, select, M))]
+    subtrees = [(0, TDIDT(f(examples, threshold), features, c, select, M, p)),
+                (1, TDIDT(f.rev_call(examples, threshold), features, c, select, M, p))]
     return Node(f, threshold, subtrees, c)
 
 
@@ -115,18 +116,18 @@ def DT_class(o, Tree: Node):
             return DT_class(o, sub_tree)
 
 
-def majority_class(examples: np.array):
+def majority_class(examples: np.array, p=0.5):
     num_b = examples[examples[:, 0] == 0].shape[0]
     num_m = examples.shape[0] - num_b
-    return 0 if num_b > num_m else 1
+    return 0 if num_b/examples.shape[0] > p else 1
 
 
-def ID3(examples: np.array, features, M=0):
-    c = majority_class(examples)
-    return TDIDT(examples, features, c, MaxIG, M)
+def Cost_sensitive_id3(examples: np.array, features, M=0, p=0):
+    c = majority_class(examples, p)
+    return TDIDT(examples, features, c, MaxIG, M, p)
 
 
-class ID3Solver:
+class CostSensitiveID3Solver:
     def __init__(self, train_set, test_set):
         self.E = np.array(pandas.read_csv(train_set))
         self.E[self.E[:, 0] == 'B', 0] = 1
@@ -137,10 +138,10 @@ class ID3Solver:
         self.test[self.test[:, 0] == 'B', 0] = 1
         self.test[self.test[:, 0] == 'M', 0] = 0
 
-    def regularID3(self, E=None, m=0):
+    def regularID3(self, E=None, m=0, p=0.5):
         E = self.E if E is None else E
         F = [Feature(i) for i in range(1, self.E.shape[1])]
-        return ID3(E, F, m)
+        return Cost_sensitive_id3(E, F, m, p)
 
     def regularAcc(self, tree, test=None):
         test = self.test if test is None else test
@@ -150,29 +151,48 @@ class ID3Solver:
                 num_correct += 1
         return num_correct / test.shape[0]
 
-    def KFoldpruneID3(self, M=None):
-        if M is None:
-            M = [1, 2, 3, 5, 8, 16, 30, 50, 80, 120]
-        folds = sklearn.model_selection.KFold(n_splits=5, shuffle=True, random_state=123456789)
+    def KFoldCostID3(self, P=None):
+        if P is None:
+            P = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
+        folds = sklearn.model_selection.KFold(n_splits=5, shuffle=True, random_state=207721481)
         out = []
-        for m in M:
+        for p in P:
             acc = []
             for train_indices, test_indices in folds.split(self.E):
-                decision_tree = self.regularID3(self.E[train_indices], m)
-                acc.append(self.regularAcc(decision_tree, self.E[test_indices]))
+                decision_tree = self.regularID3(self.E[train_indices], 10, p)
+                acc.append(self.loss_q_4(decision_tree, self.E[test_indices]))
             out.append(sum(acc) / len(acc))
 
-        plt.plot(M, out, label='accuracy')
+        plt.plot(P, out, label='loss')
         plt.legend()
         plt.show()
 
         min_m = -1
         min_acc = 1000
-        for m, acc in zip(M, out):
+        for m, acc in zip(P, out):
             if acc < min_acc:
                 min_m = m
                 min_acc = acc
         return min_m, min_acc
+    def find_best_p(self, P=None):
+        if P is None:
+            P = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
+            out = []
+            for p in P:
+                decision_tree = self.regularID3(self.E, 10, p)
+                out.append(self.loss_q_4(decision_tree, self.test))
+
+            plt.plot(P, out, label='loss')
+            plt.legend()
+            plt.show()
+
+            min_m = -1
+            min_acc = 1000
+            for m, acc in zip(P, out):
+                if acc < min_acc:
+                    min_m = m
+                    min_acc = acc
+            return min_m, min_acc
 
     def m_prune(self, m=0):
         return self.regularID3(m=m)
@@ -189,7 +209,7 @@ class ID3Solver:
         return loss / test.shape[0]
 
 
-def experiment(id3_solver: ID3Solver, M=None):
+def experiment(id3_solver: CostSensitiveID3Solver, M=None):
     """this is function for q.3
         to use it:
         1) create classifier using: classifier = ID3Solver('train.csv', 'test.csv')
@@ -211,6 +231,5 @@ def experiment(id3_solver: ID3Solver, M=None):
 
 
 if __name__ == '__main__':
-    classifier = ID3Solver('train.csv', 'test.csv')
-    print(classifier.regularAcc(classifier.regularID3()))
-    print(classifier.loss_q_4(classifier.m_prune(10)))
+    classifier = CostSensitiveID3Solver('train.csv', 'test.csv')
+    print(classifier.loss_q_4(classifier.regularID3(m=10, p=0.05)))
