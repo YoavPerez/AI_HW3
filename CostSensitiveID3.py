@@ -225,11 +225,11 @@ def experiment(id3_solver: CostSensitiveID3Solver, M=None):
 
     if M is None:
         M = [10, 15, 20, 25, 30, 35, 40, 200]
-    min_m, min_acc = id3_solver.KFoldpruneID3(M)
+    min_m, min_acc = id3_solver.KFoldCostID3(M)
     acc_of_real_test = id3_solver.regularAcc(id3_solver.m_prune(min_m))
     return min_m, min_acc, acc_of_real_test
 
 
 if __name__ == '__main__':
     classifier = CostSensitiveID3Solver('train.csv', 'test.csv')
-    print(classifier.loss_q_4(classifier.regularID3(m=10, p=0.05)))
+    print(classifier.loss_q_4(classifier.regularID3(m=10, p=0.25)))

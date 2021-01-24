@@ -127,20 +127,14 @@ def ID3(examples: np.array, features, M=0):
 
 
 class ID3Solver:
-    def __init__(self, train_set, test_set):
-        self.E = np.array(pandas.read_csv(train_set))
-        self.E[self.E[:, 0] == 'B', 0] = 1
-        self.E[self.E[:, 0] == 'M', 0] = 0
-        self.E = np.array(self.E, dtype=float)
-
-        self.test = np.array(pandas.read_csv(test_set))
-        self.test[self.test[:, 0] == 'B', 0] = 1
-        self.test[self.test[:, 0] == 'M', 0] = 0
+    def __init__(self, train_set=None, test_set=None):
+        self.E = train_set
+        self.test = test_set
 
     def regularID3(self, E=None, m=0):
-        E = self.E if E is None else E
-        F = [Feature(i) for i in range(1, self.E.shape[1])]
-        return ID3(E, F, m)
+        e = self.E if E is None else E
+        f = [Feature(i) for i in range(1, self.E.shape[1])]
+        return ID3(e, f, m)
 
     def regularAcc(self, tree, test=None):
         test = self.test if test is None else test
@@ -211,6 +205,14 @@ def experiment(id3_solver: ID3Solver, M=None):
 
 
 if __name__ == '__main__':
-    classifier = ID3Solver('train.csv', 'test.csv')
+    E = np.array(pandas.read_csv('train.csv'))
+    E[E[:, 0] == 'B', 0] = 1
+    E[E[:, 0] == 'M', 0] = 0
+    E = np.array(E, dtype=float)
+
+    T = np.array(pandas.read_csv('test.csv'))
+    T[T[:, 0] == 'B', 0] = 1
+    T[T[:, 0] == 'M', 0] = 0
+    classifier = ID3Solver(E, T)
     print(classifier.regularAcc(classifier.regularID3()))
     print(classifier.loss_q_4(classifier.m_prune(10)))
