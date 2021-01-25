@@ -147,7 +147,7 @@ class ID3Solver:
     def KFoldpruneID3(self, M=None):
         if M is None:
             M = [1, 2, 3, 5, 8, 16, 30, 50, 80, 120]
-        folds = sklearn.model_selection.KFold(n_splits=5, shuffle=True, random_state=123456789)
+        folds = sklearn.model_selection.KFold(n_splits=5, shuffle=True, random_state=207721481)
         out = []
         for m in M:
             acc = []

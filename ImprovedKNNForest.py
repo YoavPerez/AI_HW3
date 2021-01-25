@@ -49,9 +49,12 @@ class KNNForest:
 
         num_correct = 0
         for x in test_set:
-            best_k_centroids = np.argsort(np.sum((self.centroids[:, 1:] - x[1:])**2, 1))[:self.K]
+            best_k_centroids = np.argsort(np.sum((self.centroids[:, 1:] - x[:, 1:])**2, 1))[:self.K]
             results = [0, 0]  # M, B
             for i in best_k_centroids:
+                deltas = [0]*self.K
+                for i, center in enumerate(best_k_centroids):
+                    deltas[i] = (center[])
                 results[ID3.DT_class(x, self.trees[i].solver)] += 1
             if results[0] >= results[1]:
                 classification = 0
