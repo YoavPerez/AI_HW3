@@ -67,6 +67,21 @@ if __name__ == "__main__":
     E = np.array(pandas.read_csv("train.csv"))
     E[E[:, 0] == 'B', 0] = 1
     E[E[:, 0] == 'M', 0] = 0
+    out = []
+    # run the following line to get the avg and max over 30 runs
+    """for i in range(30):
+        c = KNNForest(15, 11, 0.4, E)
+        out.append(c.test())
+    print(sum(out)/30)
+    print(max(out))"""
+
+
+    # just one run
     c = KNNForest(15, 11, 0.4, E)
+
+    """
+    tuning:
+    c.KfoldKNNForest(E)
+    """
+
     print(c.test())
-    #c.KfoldKNNForest(E)

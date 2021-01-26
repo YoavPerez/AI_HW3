@@ -24,38 +24,22 @@ class KNNForest:
             samples = random.sample(range(self.n), int(p * self.n))
             tree_examples = examples[samples]
             centroid = np.mean(tree_examples, axis=0)
-            self.trees.append(Tree(ID3.ID3Solver(tree_examples, None).regularID3(), centroid))
+            self.trees.append(Tree(ID3.ID3Solver(tree_examples, None).regularID3(m=10), centroid))
             self.centroids[i] = centroid
-    def KfoldKNNForest(self, examples):
-        N = [5, 10, 15, 20, 25]
-        K = [(1, 3, 5), (5, 7, 9), (9, 11, 13), (13, 15, 17), (19, 21, 23)]
-        P = [0.3, 0.4, 0.5]
-        folds = sklearn.model_selection.KFold(n_splits=5, shuffle=True, random_state=123456789)
-        for n, k_list in zip(N, K):
-            for k in k_list:
-                for p in P:
-                    for train_indices, test_indices in folds.split(examples):
-                        acc = []
-                        tree = KNNForest(n, k, p, examples[test_indices])
-                        acc.append(tree.test())
-                    print("N: ", n, "| K: ", k, "|p: ", p, "|accuracy: ", sum(acc)/len(acc))
-
 
     def test(self, test_set=None):
         if test_set is None:
             test_set = np.array(pandas.read_csv("test.csv"))
             test_set[test_set[:, 0] == 'B', 0] = 1
             test_set[test_set[:, 0] == 'M', 0] = 0
-
         num_correct = 0
         for x in test_set:
-            best_k_centroids = np.argsort(np.sum((self.centroids[:, 1:] - x[:, 1:])**2, 1))[:self.K]
+            best_k_centroids = np.argsort(np.sum((self.centroids[:, 1:] - x[1:])**2, 1))[:self.K]
+            deltas = np.sum((self.centroids[best_k_centroids][:, 1:] - x[1:])**2, 1)
+            deltas[deltas < 0.0001] = 0.0001
             results = [0, 0]  # M, B
-            for i in best_k_centroids:
-                deltas = [0]*self.K
-                for i, center in enumerate(best_k_centroids):
-                    deltas[i] = (center[])
-                results[ID3.DT_class(x, self.trees[i].solver)] += 1
+            for delta, i in zip(deltas, best_k_centroids):
+                results[ID3.DT_class(x, self.trees[i].solver)] += 1/delta
             if results[0] >= results[1]:
                 classification = 0
             else:
@@ -70,6 +54,22 @@ if __name__ == "__main__":
     E = np.array(pandas.read_csv("train.csv"))
     E[E[:, 0] == 'B', 0] = 1
     E[E[:, 0] == 'M', 0] = 0
+    scalar = sklearn.preprocessing.MinMaxScaler()
+    scalar.fit(E)
+    E = np.array(scalar.transform(E))
+    T = np.array(pandas.read_csv("test.csv"))
+    T[T[:, 0] == 'B', 0] = 1
+    T[T[:, 0] == 'M', 0] = 0
+    T = scalar.transform(T)
+
+    # run the following line to find the avg and max over 30 runs
+    """   out = []
+    for i in range(30):
+        c = KNNForest(15, 11, 0.4, E)
+        out.append(c.test(T))
+    print(sum(out)/30)
+    print(max(out))"""
+
+    # this is for just one run
     c = KNNForest(15, 11, 0.4, E)
-    print(c.test())
-    #c.KfoldKNNForest(E)
+    print(c.test(T))

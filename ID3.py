@@ -188,7 +188,8 @@ def experiment(id3_solver: ID3Solver, M=None):
         to use it:
         1) create classifier using: classifier = ID3Solver('train.csv', 'test.csv')
         2) call it with M - the m values you want. [10, 15, 20, 25, 30, 35, 40, 200] is default
-
+        or:
+        uncomment line 219
         the function will plot a graph of the m-values and their accuracies
 
         @:param id3_solver: the classifier
@@ -215,4 +216,5 @@ if __name__ == '__main__':
     T[T[:, 0] == 'M', 0] = 0
     classifier = ID3Solver(E, T)
     print(classifier.regularAcc(classifier.regularID3()))
-    print(classifier.loss_q_4(classifier.m_prune(10)))
+   # experiment(classifier)
+   # print(classifier.loss_q_4(classifier.m_prune(10)))
